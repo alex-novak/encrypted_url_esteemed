@@ -19,7 +19,7 @@ class EncryptedErrorPage extends ControllerBase {
    */
   public function on404() {
     if (!empty($_GET['encrypted_node'])) {
-      $url = Url::fromRoute('entity.node.canonical', ['node' => 3680]);
+      $url = Url::fromRoute('entity.node.canonical', ['node' => base64_decode($_GET['encrypted_node'])]);
       return new RedirectResponse($url->toString());
     }
     else {
