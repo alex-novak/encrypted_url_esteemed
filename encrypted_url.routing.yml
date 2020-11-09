@@ -1,0 +1,7 @@
+encrypted_url.system.404:
+  path: '/system/404'
+  defaults:
+    _controller: '\Drupal\encrypted_url\Controller\EncryptedErrorPage:on404'
+    _title: 'Page not found - 404'
+  requirements:
+    _access: 'TRUE'
