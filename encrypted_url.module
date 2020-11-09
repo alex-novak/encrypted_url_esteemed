@@ -1,0 +1,68 @@
+<?php
+
+/**
+ * @file
+ * Provides expanded encrypted_url module.
+ */
+
+use Drupal\Core\Link;
+use Drupal\Core\Url;
+use Drupal\node\Entity\Node;
+
+/**
+ * {@inheritdoc}
+ */
+function encrypted_url_node_insert(Node $node) {
+  $from = \Drupal::config('system.site')->get('mail', ini_get('sendmail_from'));
+  $headers = array(
+    'Reply-to' => $from,
+    'Return-path' => "<$from>",
+    'Errors-to' => $from,
+  );
+  $mailManager = \Drupal::service('plugin.manager.mail');
+  $node_type = $node->getType();
+  global $base_url;
+  if ($node_type == 'article') {
+    $user = $node->getOwner();
+    $user_email = $user->getEmail();
+    $url = Url::fromUri($base_url . '?encrypted_node=' . base64_encode($node->id()));
+    $internal_link = Link::fromTextAndUrl(t('Admin notify check'), $url);
+    $generated_link = $internal_link->toString()->getGeneratedLink();
+    $body = 'Content link: ' . $generated_link;
+    $email = $user_email;
+    $langcode = \Drupal::currentUser()->getPreferredLangcode();
+    $params = array(
+      'subject' => 'You created mew Article',
+      'message' => $body,
+      'headers' => $headers,
+    );
+    $key = 'admin_notify_key';
+    $result = $mailManager->mail('encrypted_url', $key, $email, $langcode, $params, $from, TRUE);
+    if ($result['result'] !== true) {
+      $message = t('There was a problem sending your email notification to @email for creating node @id.', array('@email' => $email, '@id' => $node->id()));
+      \Drupal::messenger()->addMessage($message, 'error');
+      \Drupal::logger('encrypted_url')->error($message);
+      return;
+    }
+
+    $message = t('An email notification has been sent to @email for creating node @id.', array('@email' => $email, '@id' => $node->id()));
+    \Drupal::messenger()->addMessage($message);
+    \Drupal::logger('encrypted_url')->notice($message);
+  }
+}
+
+/**
+ * Implementation of hook_mail().
+ * @param <type> $key
+ * @param <type> $message
+ * @param <type> $params
+ */
+function encrypted_url_mail($key, &$message, $params) {
+  switch ($key) {
+    case 'encrypted_url_key':
+      $message['subject'] = $params['subject'];
+      $message['body'][] = $params['message'];
+      break;
+  }
+}
+
